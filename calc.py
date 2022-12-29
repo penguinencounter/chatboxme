@@ -2,6 +2,15 @@ import ast
 import operator as op
 import functools
 
+
+def is_integer(st):
+    try:
+        int(st)
+    except ValueError:
+        return False
+    return True
+
+
 # supported operators
 operators = {ast.Add: op.add, ast.Sub: op.sub, ast.Mult: op.mul,
              ast.Div: op.truediv, ast.Pow: op.pow, ast.BitXor: op.xor,
