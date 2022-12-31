@@ -12,10 +12,15 @@ from collections import defaultdict, namedtuple
 import requests
 import websockets
 from PIL import Image, ImageStat
+from websockets.exceptions import InvalidStatusCode
 
 import calc
 from typing import *
 from websockets.client import WebSocketClientProtocol
+
+from spymap.integration import get_configuration, get_updates
+
+DYNMAP_CONF = get_configuration()
 
 with open('key') as f:
     key = f.read().strip()
@@ -316,8 +321,42 @@ async def cmd_watch(sock: WebSocketClientProtocol, ctx: dict, args: List[str]):
         print('Not Implemented action {}'.format(mode))
 
 
+async def cmd_whereis(sock, ctx, args):
+    results = get_updates(DYNMAP_CONF)
+    if len(args) != 1:
+        await sock.send(json.dumps({
+            'type': 'tell',
+            'user': ctx['user']['name'],
+            'name': 'whereis',
+            'text': r'&cFailed: invalid arguments; \whereis <player>',
+            'mode': 'format'
+        }))
+        return
+    name = args[0]
+    for world, data in results.items():
+        for player in data['players']:
+            if player['account'].lower() == name.lower():
+                await sock.send(json.dumps({
+                    'type': 'tell',
+                    'user': ctx['user']['name'],
+                    'name': 'whereis',
+                    'text': rf'&6{name} is at &c{round(player["x"], 2)}&6, &c{round(player["y"], 2)}&6, &c{round(player["z"], 2)}&6 in &c{world}&6.',
+                    'mode': 'format'
+                }))
+                return
+
+    await sock.send(json.dumps({
+        'type': 'tell',
+        'user': ctx['user']['name'],
+        'name': 'whereis',
+        'text': rf'&6{name} not found.',
+        'mode': 'format'
+    }))
+
+
 register('calc', cmd_calc)
 register('watch', cmd_watch)
+register('whereis', cmd_whereis)
 
 
 NameUUID = namedtuple('NameUUID', ['name', 'uuid'])
@@ -420,7 +459,8 @@ async def main():
                     elif data['event'] == 'join':
                         player_cache.add(NameUUID(data['user']['name'], data['user']['uuid']))
                     elif data['event'] == 'leave':
-                        player_cache.remove(NameUUID(data['user']['name'], data['user']['uuid']))
+                        if NameUUID(data['user']['name'], data['user']['uuid']) in player_cache:
+                            player_cache.remove(NameUUID(data['user']['name'], data['user']['uuid']))
                 elif 'error' in data.keys():
                     print('Error occurred. {}'.format(data['error']))
                 elif 'type' in data.keys() and data['type'] == 'players':
@@ -451,8 +491,11 @@ async def main_ka():
             print(f'Connection closed (bad) ({e.code}). Reconnecting...')
         except ConnectionClosed as e:
             print(f'Connection closed ({e.code}). Reconnecting...')
+        except InvalidStatusCode as e:
+            print(f'Invalid status code ({e.status_code}). Reconnecting...')
         except Exception as e:
-            print(f'Unknown exception: {e}. Attempting reconnect...')
+            print(f'Unknown exception: {type(e)} {e}. Attempting reconnect...')
+            # raise
         await asyncio.sleep(1)
 
 

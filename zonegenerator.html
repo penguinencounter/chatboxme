@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Zone Generator</title>
+    <style>
+        body {
+            font-family: sans-serif, monospace;
+            background-color: #0f0f0f;
+            color: #e0e0e0;
+        }
+        h1 {
+            color: #8000e0;
+        }
+
+        .rect {
+            padding: 10px;
+            background-color: #ffffff20;
+            border-radius: 10px;
+            transition: background-color 0.5s;
+            margin: 10px;
+            position: relative;
+        }
+
+        .rect > .button-group {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .rect > .button-group button {
+            margin: 5px;
+            padding: 10px;
+            border-radius: 10px;
+            width: calc(2em + 10px);
+            height: calc(2em + 10px);
+            border: none;
+            background-color: #ffffff20;
+            color: #e0e0e0;
+        }
+
+        .rect > .button-group button.remove {
+            background-color: #ff000020;
+        }
+
+        .rect:hover {
+            background-color: #c080ff20;
+        }
+
+        .label-big {
+            font-size: 1.5em;
+            margin-bottom: 5px;
+            color: #0080e0;
+        }
+
+        .cpair {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+            width: max-content;
+            background-color: #ffffff05;
+            padding: 5px;
+            border-radius: 10px;
+        }
+
+        .pair-container {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            gap: 5px;
+            width: max-content;
+            border-radius: 10px;
+        }
+
+        .cpair input {
+            min-width: 20px;
+            width: 50px;
+            margin: 2px;
+            padding: 5px;
+            border: none;
+            color: #ffffff;
+            border-radius: 10px;
+            font-family: sans-serif;
+            font-size: 1em;
+            position: relative;
+        }
+
+        .cpair input.x {
+            background-color: #ff000020;
+        }
+        .cpair input.z {
+            background-color: #0000ff20;
+        }
+        .cpair input::placeholder {
+            color: #ffffff;
+        }
+
+        .cpair input.x:invalid {
+            background: repeating-linear-gradient(45deg, #ff000020, #ff000020 10px, #ff000080 10px, #ff000080 20px);
+        }
+        .cpair input.z:invalid {
+            background: repeating-linear-gradient(45deg, #0000ff20, #0000ff20 10px, #ff000080 10px, #ff000080 20px);
+        }
+
+        .divider {
+            width: 10px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        #new {
+            border: none;
+            background-color: #0080e0;
+            color: #ffffff;
+            font-size: 1.2em;
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        #new:active {
+            background-color: #0060a8;
+            box-shadow: inset 2px 2px 2px #000000;
+        }
+
+        #generator_result {
+            height: min-content;
+            overflow: auto;
+        }
+    </style>
+    <script>
+        window.addEventListener("load", () => {
+            const newButton = document.getElementById("new");
+            const buildContainer = document.getElementById("build");
+            const rectTemplate = document.getElementById("rect-template");
+            const result = document.getElementById("generator_result");
+
+            function newRect() {
+                const rect = rectTemplate.cloneNode(true);
+                rect.id = "";
+                rect.classList.remove("hidden");
+                buildContainer.appendChild(rect);
+                rect.querySelector(".remove").addEventListener("click", () => {
+                    rect.remove();
+                    calc();
+                });
+            }
+            newButton.addEventListener("click", newRect);
+            newRect();
+
+            function calc(...ignored) {
+                // calculate the result
+                /**
+                 * [
+                 *  { x1: <x1>, z1: <z1>, x2: <x2>, z2: <z2>},
+                 *  ...
+                 * ]
+                 */
+                const rects = [];
+                for (const rect of buildContainer.children) {
+                    if (rect.classList.contains("hidden")) continue; // ignore the template
+                    const x1 = rect.querySelector("input.x1");
+                    const z1 = rect.querySelector("input.z1");
+                    const x2 = rect.querySelector("input.x2");
+                    const z2 = rect.querySelector("input.z2");
+
+                    if (x1.checkValidity() && z1.checkValidity() && x2.checkValidity() && z2.checkValidity()) {
+                        rects.push({ x1: parseInt(x1.value), z1: parseInt(z1.value), x2: parseInt(x2.value), z2: parseInt(z2.value) });
+                    } else {
+                        // invalid rect
+                        result.innerHTML = "Failed: Invalid data";
+                        return;
+                    }
+                }
+                result.innerHTML = btoa("zonev1;" + JSON.stringify(rects));
+            }
+
+            buildContainer.addEventListener("input", calc);
+        });
+    </script>
+</head>
+<body>
+    <h1>Zone generator</h1>
+    <noscript>Javascript is required :(</noscript>
+    <button id="new">New rectangle</button>
+    <div id="build">
+        <div class="rect hidden" id="rect-template">
+            <div class="button-group">
+                <button class="remove">x</button>
+            </div>
+
+            <div class="label-big">Rectangle area</div>
+            <div class="pair-container">
+                <div class="cpair pair1">
+                    <label>
+                        <input type="text" autocomplete="no" placeholder="x1" class="x1 x" pattern="-?\d+" title="Please input a valid number.">
+                    </label>
+                    <span class="divider">, </span>
+                    <label>
+                        <input type="text" autocomplete="no" placeholder="z1" class="z1 z" pattern="-?\d+">
+                    </label>
+                </div>
+                <div class="vcenter">to</div>
+                <div class="cpair pair2">
+                    <label>
+                        <input type="text" autocomplete="no" placeholder="x2" class="x2 x" pattern="-?\d+">
+                    </label>
+                    <span class="divider">, </span>
+                    <label>
+                        <input type="text" autocomplete="no" placeholder="z2" class="z2 z" pattern="-?\d+">
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="generator_result">
+
+    </div>
+</body>
+</html>
