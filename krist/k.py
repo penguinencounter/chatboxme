@@ -25,7 +25,7 @@ def get_addr():
 ADDR = get_addr()
 
 
-def send_to(address: str, amount: int) -> None:
+def send_to(address: str, amount: int, meta: str = '') -> None:
     """
     Send krist to an address.
     """
@@ -34,7 +34,8 @@ def send_to(address: str, amount: int) -> None:
         data={
             "privatekey": PRIVATE,
             "to": address,
-            "amount": amount
+            "amount": amount,
+            "metadata": meta
         },
     )
     return resp.json()['ok']
