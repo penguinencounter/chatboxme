@@ -3,3 +3,4 @@ __pycache__/
 .idea/
 switchcraft-watches.json
 map_cache/
+venv/
