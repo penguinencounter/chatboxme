@@ -1,5 +1,9 @@
 # kauth: authenticate with your Krist wallet. Why not.
 import re
+import secrets
+import string
+import time
+from collections import namedtuple
 from typing import *
 
 import requests
@@ -9,6 +13,9 @@ from krist.k import send_to
 NAMES_TRUSTED = {
     "switchcraft": "kqxhx5yn9v"
 }
+
+Session = namedtuple('Session', ['id', 'authenticated', 'auth_for', 'expiry'])
+SESSIONS: Dict[str, Session] = {}
 
 with open("krist_key.txt") as f:
     PRIVATE = f.read().strip()
@@ -89,12 +96,20 @@ def get_refund_address(sent_from: str, metadata: str):
 KAUTH_META_TOK = "kauth"
 KAUTH_OUT_META_TOK = "kauth_for"
 
-
 last_done = 0
 
 
 def process(txn: dict):
     ok, refto, message = get_refund_address(txn['from'], txn['metadata'] if 'metadata' in txn else None)
+    meta = parse_commonmeta(txn['metadata'] if 'metadata' in txn else None)[2]
+    if ok and KAUTH_META_TOK in meta:
+        # find a session
+        sess = SESSIONS.get(meta[KAUTH_META_TOK])
+        if sess is None:
+            # no session found
+            send_to(refto, txn['value'], "message=No matching session found" + f";{KAUTH_OUT_META_TOK}=" + str(txn['id']))
+            return
+
     print(f'  > send {txn["value"]} kst to {refto}')
     send_to(refto, txn['value'], "message=" + message + f";{KAUTH_OUT_META_TOK}=" + str(txn['id']))
 
@@ -140,7 +155,7 @@ def read_incoming():
     incoming: Set[int] = set()
     outgoing: Set[int] = set()
     for txn in txns:
-        if txn['id'] < last_done:
+        if txn['id'] <= last_done:
             continue
         if txn['from'] == ADDR:
             direction = 'out'
@@ -160,7 +175,8 @@ def read_incoming():
         if KAUTH_OUT_META_TOK in meta and is_out:
             try:
                 outgoing.add(int(meta[KAUTH_OUT_META_TOK]))
-                print(f'  > kauth {direction.ljust(3)} #{txn["id"]} (ref #{meta[KAUTH_OUT_META_TOK]}) {txn["value"]} kst to {txn["to"]}')
+                print(
+                    f'  > kauth {direction.ljust(3)} #{txn["id"]} (ref #{meta[KAUTH_OUT_META_TOK]}) {txn["value"]} kst to {txn["to"]}')
             except ValueError:
                 print(f"  > {txn['id']} has invalid {KAUTH_OUT_META_TOK} metadata")
 
@@ -174,3 +190,13 @@ def read_incoming():
     already_done = outgoing & incoming
     highest_done = max(already_done) if len(already_done) > 0 else 0
     last_done = max(last_done, highest_done)
+
+
+def new_session():
+    # random 32 character session ID
+    EXPIRY_MINUTES = 5
+    key = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(32))
+
+    sess = Session(key, False, None, time.time() + EXPIRY_MINUTES * 60)
+    SESSIONS[key] = sess
+    return sess
