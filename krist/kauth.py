@@ -175,17 +175,16 @@ def read_incoming():
         if KAUTH_OUT_META_TOK in meta and is_out:
             try:
                 outgoing.add(int(meta[KAUTH_OUT_META_TOK]))
-                print(
-                    f'  > kauth {direction.ljust(3)} #{txn["id"]} (ref #{meta[KAUTH_OUT_META_TOK]}) {txn["value"]} kst to {txn["to"]}')
             except ValueError:
-                print(f"  > {txn['id']} has invalid {KAUTH_OUT_META_TOK} metadata")
+                print(f"!!> {txn['id']} has invalid {KAUTH_OUT_META_TOK} metadata")
 
     need_to_process = incoming - outgoing
-    print(f'  > To process (refund):')
-    for txn_id in need_to_process:
-        txn = txn_cache[txn_id]
-        print(f'  >   {txn_id}')
-        process(txn)
+    if len(need_to_process) > 0:
+        print(f'  > To process (refund):')
+        for txn_id in need_to_process:
+            txn = txn_cache[txn_id]
+            print(f'  >   {txn_id}')
+            process(txn)
 
     already_done = outgoing & incoming
     highest_done = max(already_done) if len(already_done) > 0 else 0

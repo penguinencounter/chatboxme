@@ -4,6 +4,7 @@ import os.path
 import time
 from collections import defaultdict, namedtuple
 from math import floor, ceil
+from sqlite3 import Connection
 from typing import *
 
 import websockets
@@ -12,6 +13,7 @@ from websockets.exceptions import InvalidStatusCode
 
 import calc
 from krist import kauth
+from spymap import based
 from spymap.integration import get_configuration, get_updates
 
 DYNMAP_CONF = get_configuration()
@@ -88,8 +90,7 @@ async def cmd_calc(sock: WebSocketClientProtocol, ctx: dict, args: List[str]):
         print('Done')
 
 
-async def cmd_whereis(sock, ctx, args):
-    results = get_updates(DYNMAP_CONF)
+async def cmd_whereis(sock: WebSocketClientProtocol, ctx: dict, args: List[str]):
     if len(args) != 1:
         await sock.send(json.dumps({
             'type': 'tell',
@@ -100,29 +101,31 @@ async def cmd_whereis(sock, ctx, args):
         }))
         return
     name = args[0]
-    for world, data in results.items():
-        for player in data['players']:
-            if player['account'].lower() == name.lower():
-                await sock.send(json.dumps({
-                    'type': 'tell',
-                    'user': ctx['user']['name'],
-                    'name': 'whereis',
-                    'text': rf'&6{name} is at &c{round(player["x"], 2)}&6, &c{round(player["y"], 2)}&6, &c{round(player["z"], 2)}&6 in &c{world}&6.',
-                    'mode': 'format'
-                }))
-                return
-
     await sock.send(json.dumps({
         'type': 'tell',
         'user': ctx['user']['name'],
         'name': 'whereis',
-        'text': rf'&6{name} not found.',
+        'text': based.player_report(name),
+        'mode': 'format'
+    }))
+
+
+async def cmd_dbhealth(sock: WebSocketClientProtocol, ctx: dict, _: List[str]):
+    print(ctx['user']['name'].lower(), 'requested db health')
+    if ctx['user']['name'].lower() != "penguinencounter":
+        return
+    await sock.send(json.dumps({
+        'type': 'tell',
+        'user': ctx['user']['name'],
+        'name': 'dbhealth',
+        'text': based.dbhealth_report(),
         'mode': 'format'
     }))
 
 
 register('calc', cmd_calc)
 register('whereis', cmd_whereis)
+register('dbhealth', cmd_dbhealth)
 
 
 NameUUID = namedtuple('NameUUID', ['name', 'uuid'])
@@ -133,17 +136,26 @@ async def process_kauth(_: WebSocketClientProtocol):
     kauth.read_incoming()
 
 
+async def track(_: WebSocketClientProtocol):
+    based.auto_fetch(DYNMAP_CONF)
+
+
 tasks = {
     2: [
-        process_kauth
+        process_kauth,
+        track
     ]
 }
 
 last_tick = time.time()
 
 
-async def main():
+async def main(conn: Connection):
     global tasks, last_tick, player_cache
+    cursor = conn.cursor()
+    based.fixup_updates(cursor)
+    conn.commit()
+    cursor.close()
     async with websockets.connect(TARGET) as websocket:
         websocket: WebSocketClientProtocol
         while True:
@@ -195,7 +207,8 @@ async def main_ka():
     print(f'Keep-alive enabled...')
     while True:
         try:
-            await main()
+            with based.player_connector() as conn:
+                await main(conn)
         except ConnectionClosedOK as e:
             print(f'Connection closed (ok) ({e.code}). Reconnecting...')
         except ConnectionClosedError as e:

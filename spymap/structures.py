@@ -15,6 +15,8 @@ from spymap.tools import get_batch
 
 DynmapWorld = namedtuple('DynmapWorld', ['internal', 'external'])
 
+DynmapPlayer = namedtuple('DynmapPlayer', ['world', 'x', 'y', 'z', 'account'])
+
 
 class DynmapConfiguration:
     def __init__(self, configuration_data: dict):
@@ -22,6 +24,16 @@ class DynmapConfiguration:
             lambda world: DynmapWorld(world['name'], world['title']),
             configuration_data['worlds']
         ))
+
+
+def drop_excess(block: dict, fds: list):
+    return {k: v for k, v in block.items() if k in fds}
+
+
+class DynmapPlayerListing:
+    # noinspection PyTypeChecker
+    def __init__(self, player_data: dict):
+        self.players: Tuple[DynmapPlayer, ...] = tuple(map(lambda x: DynmapPlayer(**drop_excess(x, DynmapPlayer._fields)), player_data['players']))
 
 
 class WatchedChunk:
