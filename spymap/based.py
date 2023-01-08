@@ -5,9 +5,11 @@ from sqlite3 import connect, Connection, Cursor
 from typing import Optional
 
 import requests
+from rich import print as rich_print
 
 from spymap import integration
 from spymap.structures import DynmapPlayerListing, DynmapConfiguration, DynmapPlayer
+from mc2rich import mc2rich
 
 
 def player_connector() -> Connection:
@@ -126,13 +128,22 @@ EASTER_EGG = {
 }
 
 
-def pack_cursor(fn):
+def with_player_cursor(fn):
     def wrapper(*args, **kwargs):
         with player_connector() as conn:
             cur = conn.cursor()
             ret = fn(*args, cur=cur, **kwargs)
             conn.commit()
             cur.close()
+        return ret
+    return wrapper
+
+
+def with_player_connection(fn):
+    def wrapper(*args, **kwargs):
+        with player_connector() as conn:
+            ret = fn(*args, conn=conn, **kwargs)
+            conn.commit()
         return ret
     return wrapper
 
@@ -174,6 +185,7 @@ def player_report(username: str):
     output += f"&8last update &7{time.time()-last_fix:.1f}s &8ago\n"
     stop = time.time()
     print(f"Tracking report took {stop - start:.2f} seconds")
+    rich_print(output)
     return output
 
 
@@ -194,6 +206,7 @@ def dbhealth_report() -> str:
         cur.execute("SELECT COUNT(*) FROM NameUUID")
         output += f"&a{cur.fetchone()[0]} &7names tracked\n"
         cur.close()
+    rich_print(output)
     return output
 
 
