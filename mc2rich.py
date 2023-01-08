@@ -56,5 +56,5 @@ if __name__ == '__main__':
 &rr &rMinecraft"""
     rp(mc2rich(testbench))
 
-    print()
-    rp(mc2rich(based.dbhealth_report()))
+    # print(based.dbhealth_report())
+    rp(mc2rich(based.player_report("PenguinEncounter")))

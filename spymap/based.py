@@ -40,7 +40,7 @@ def fixup_updates(cur: Cursor):
     print("Reorganizing Updates table...")
     cur.execute("DROP TABLE IF EXISTS fixup")
     cur.execute(ADDITIONAL_CREATE["fixup"])
-    counter = 1
+    counter = 0
     for row in cur.execute("SELECT uuid, username, x, y, z, world FROM Updates ORDER BY ord ASC").fetchall():
         if counter % 100 == 0:
             print(f"\rFixup: Processed {counter} rows...".ljust(50), end='', flush=True)
@@ -185,7 +185,7 @@ def player_report(username: str):
     output += f"&8last update &7{time.time()-last_fix:.1f}s &8ago\n"
     stop = time.time()
     print(f"Tracking report took {stop - start:.2f} seconds")
-    rich_print(output)
+    rich_print(mc2rich(output))
     return output
 
 
@@ -206,7 +206,7 @@ def dbhealth_report() -> str:
         cur.execute("SELECT COUNT(*) FROM NameUUID")
         output += f"&a{cur.fetchone()[0]} &7names tracked\n"
         cur.close()
-    rich_print(output)
+    rich_print(mc2rich(output))
     return output
 
 
