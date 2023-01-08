@@ -80,7 +80,6 @@ def apply_update(cur: Cursor, conf: DynmapConfiguration, update_data: DynmapPlay
     # prepare to update
     next_ord = cur.execute("SELECT MAX(ord) FROM Updates").fetchone()[0]
     next_ord = next_ord if next_ord is not None else 0
-    next_ord += 1
     for player in update_data.players:
         player: DynmapPlayer
         if player.account is None:
@@ -99,11 +98,11 @@ def apply_update(cur: Cursor, conf: DynmapConfiguration, update_data: DynmapPlay
         )
         # get the last update
         if last_update is None or last_update[0] != player.x or last_update[1] != player.y or last_update[2] != player.z or last_update[3] != player.world:
+            next_ord += 1
             cur.execute(
                 "INSERT INTO Updates (ord, uuid, username, x, y, z, world) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (next_ord, uuid, player.account, player.x, player.y, player.z, player.world)
             )
-        next_ord += 1
     last_fix = time.time()
 
 
