@@ -25,13 +25,6 @@ TARGET = f"wss://chat.sc3.io/v2/{key}"
 
 COMMANDS = defaultdict(list)
 
-if os.path.exists('switchcraft-watches.json'):
-    with open('switchcraft-watches.json') as f:
-        watches: dict = json.load(f)
-else:
-    watches = {}
-
-
 def register(command: str, handler: Callable[[WebSocketClientProtocol, dict, List[str]], Coroutine]):
     COMMANDS[command].append(handler)
 
