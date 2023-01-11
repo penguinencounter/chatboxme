@@ -147,7 +147,7 @@ async def main(conn: Connection):
     global tasks, last_tick, player_cache
     cursor = conn.cursor()
     based.player_init_tables(cursor)
-    based.fixup_updates(cursor)
+#    based.fixup_updates(cursor)
     conn.commit()
     cursor.close()
     async with websockets.connect(TARGET) as websocket:
