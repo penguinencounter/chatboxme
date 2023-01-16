@@ -204,7 +204,13 @@ def dbhealth_report() -> str:
         eff = rows / last_id if last_id > 0 else 0
         output += f"    &a{eff:03.2%} &7ID efficiency\n"
         cur.execute("SELECT COUNT(*) FROM NameUUID")
-        output += f"&a{cur.fetchone()[0]} &7names tracked\n"
+        output += f"&a{cur.fetchone()[0]} &7names tracked "
+        expired_names = 0
+        for row in cur.execute("SELECT last_refresh FROM NameUUID").fetchall():
+            exp = datetime.strptime(row[0], TSTAMP_FORMAT)
+            if (datetime.now() - exp).total_seconds() < OUTDATED_NAME_TIME:
+                expired_names += 1
+        output += f"(&c{expired_names} &7expired)\n"
         cur.close()
     rich_print(mc2rich(output))
     return output
