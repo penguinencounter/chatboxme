@@ -36,17 +36,17 @@ def register(command: str, handler: Callable[[WebSocketClientProtocol, dict, Lis
 async def invoke(sock: WebSocketClientProtocol, data: dict):
     assert 'event' in data.keys() and data['event'] == 'command'
     user = data['user']['uuid'].replace('-', '')
-    if user in BANNED:
-        print(f"User {user} is banned")
-        await sock.send(json.dumps({
-            'type': 'tell',
-            'user': data['user']['name'],
-            'name': 'calc',
-            'text': f'&cpermission error: {BANNED[user]}',
-            'mode': 'format'
-        }))
-        return
     for handler in COMMANDS[data['command']]:
+        if user in BANNED:
+            print(f"User {user} is banned")
+            await sock.send(json.dumps({
+                'type': 'tell',
+                'user': data['user']['name'],
+                'name': 'calc',
+                'text': f'&cpermission error: {BANNED[user]}',
+                'mode': 'format'
+            }))
+            return
         await handler(sock, data, data['args'])
 
 
