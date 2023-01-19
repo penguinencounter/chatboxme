@@ -21,9 +21,13 @@ DYNMAP_CONF = get_configuration()
 with open('key') as f:
     key = f.read().strip()
 
+with open('banlist.json') as f:
+    BANNED = json.load(f)
+
 TARGET = f"wss://chat.sc3.io/v2/{key}"
 
 COMMANDS = defaultdict(list)
+
 
 def register(command: str, handler: Callable[[WebSocketClientProtocol, dict, List[str]], Coroutine]):
     COMMANDS[command].append(handler)
@@ -31,6 +35,17 @@ def register(command: str, handler: Callable[[WebSocketClientProtocol, dict, Lis
 
 async def invoke(sock: WebSocketClientProtocol, data: dict):
     assert 'event' in data.keys() and data['event'] == 'command'
+    user = data['user']['uuid'].replace('-', '')
+    if user in BANNED:
+        print(f"User {user} is banned")
+        await sock.send(json.dumps({
+            'type': 'tell',
+            'user': data['user']['name'],
+            'name': 'calc',
+            'text': f'&cpermission error: {BANNED[user]}',
+            'mode': 'format'
+        }))
+        return
     for handler in COMMANDS[data['command']]:
         await handler(sock, data, data['args'])
 
@@ -120,7 +135,6 @@ register('calc', cmd_calc)
 register('whereis', cmd_whereis)
 register('dbhealth', cmd_dbhealth)
 
-
 NameUUID = namedtuple('NameUUID', ['name', 'uuid'])
 player_cache: Set[NameUUID] = set()
 
@@ -147,7 +161,7 @@ async def main(conn: Connection):
     global tasks, last_tick, player_cache
     cursor = conn.cursor()
     based.player_init_tables(cursor)
-#    based.fixup_updates(cursor)
+    #    based.fixup_updates(cursor)
     conn.commit()
     cursor.close()
     async with websockets.connect(TARGET) as websocket:
